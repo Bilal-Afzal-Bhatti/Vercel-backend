@@ -36,6 +36,29 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 }));
+// CORS middleware
+app.use(cors({
+  origin: function(origin, callback) {
+    if(!origin) return callback(null, true); // allow non-browser requests (Postman)
+    if(allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  credentials: true
+}));
+
+// Parse JSON
+app.use(express.json());
+
+// Handle preflight OPTIONS requests for all routes
+app.options("*", cors({
+  origin: allowedOrigins,
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  credentials: true
+}));
 // routes
 app.use("/api/auth", authRoutes);
 app.use("/api/useremail",useremail );
