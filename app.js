@@ -32,25 +32,44 @@ app.use(
     credentials: true,
   })
 );
+// ===== MongoDB Connection (Serverless Safe) =====
+let cached = globalThis.mongoose;
 
+if (!cached) {
+  cached = globalThis.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI is not defined");
+    }
+
+    cached.promise = mongoose
+      .connect(process.env.MONGO_URI, {
+        bufferCommands: false,
+      })
+      .then((mongoose) => mongoose);
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("Database connection error:", err);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
 app.options("*", cors());
 // ===== MongoDB Connection (IMPORTANT for Serverless) =====
-let isConnected = false;
+// ===== MongoDB Connection (Serverless Safe) =====
 
-const connectDB = async () => {
-  if (isConnected) return;
-
-  try {
-    const db = await mongoose.connect(process.env.MONGO_URI);
-    isConnected = db.connections[0].readyState === 1;
-    console.log("MongoDB Connected");
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
-    throw error;
-  }
-};
-
-connectDB();
 
 // ===== Routes =====
 app.use("/api/auth", authRoutes);
